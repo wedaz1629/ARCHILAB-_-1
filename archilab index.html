@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARCHILAB - Seguimiento de Casetes y Láminas</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style id="app-style">
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .btn-primary {
+            background-color: #4f46e5;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: #4338ca;
+        }
+        
+        .error-message {
+            color: #ef4444;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .radio-container input[type="radio"] + label {
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.25rem;
+            transition: all 0.2s ease;
+        }
+        
+        .radio-container input[type="radio"]:checked + label {
+            background-color: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+        
+        .radio-container input[type="radio"] {
+            display: none;
+        }
+        
+        .success-toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background-color: #10b981;
+            color: white;
+            padding: 1rem;
+            border-radius: 0.25rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+        }
+        
+        .success-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .table-container {
+                overflow-x: auto;
+            }
+            
+            .table th, .table td {
+                padding: 0.5rem;
+                font-size: 0.875rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="app-container p-4">
+        <header class="text-center py-6">
+            <h1 class="text-4xl font-bold text-indigo-700">ARCHILAB</h1>
+            <p class="text-gray-600 mt-2">Sistema de gestión de casetes y láminas de laboratorio</p>
+        </header>
+        
+        <div class="success-toast" id="successToast">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span id="toastMessage">Operación completada con éxito</span>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Formulario de registro -->
+            <div class="md:col-span-1">
+                <div class="bg-white rounded-lg p-6 card">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800 flex items-center">
+                        <i class="fas fa-clipboard-list text-indigo-600 mr-2"></i>
+                        Registro de Movimiento
+                    </h2>
+                    
+                    <form id="registroForm" class="space-y-4">
+                        <input type="hidden" id="editId">
+                        
+                        <div>
+                            <label for="numero" class="block text-sm font-medium text-gray-700 mb-1">Número de identificación *</label>
+                            <input type="text" id="numero" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ingrese el número" required>
+                            <div id="numeroError" class="error-message hidden">Este campo es obligatorio</div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de elemento *</label>
+                            <div class="flex space-x-4 radio-container">
+                                <div>
+                                    <input type="radio" id="tipoCasete" name="tipo" value="Casete" checked>
+                                    <label for="tipoCasete" class="block">Casete</label>
+                                </div>
+                                <div>
+                                    <input type="radio" id="tipoLamina" name="tipo" value="Lámina">
+                                    <label for="tipoLamina" class="block">Lámina</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="ubicacion" class="block text-sm font-medium text-gray-700 mb-1">Ubicación actual *</label>
+                            <select id="ubicacion" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                                <option value="">Seleccione una ubicación</option>
+                                <option value="ARCHIVO">ARCHIVO</option>
+                                <option value="BIOLOGÍA MOLECULAR">BIOLOGÍA MOLECULAR</option>
+                                <option value="HISTOLOGÍA">HISTOLOGÍA</option>
+                                <option value="EXTRA SISTEMA">EXTRA SISTEMA</option>
+                                <option value="CITOLOGÍA">CITOLOGÍA</option>
+                            </select>
+                            <div id="ubicacionError" class="error-message hidden">Este campo es obligatorio</div>
+                        </div>
+                        
+                        <div>
+                            <label for="responsable" class="block text-sm font-medium text-gray-700 mb-1">Responsable del movimiento *</label>
+                            <input type="text" id="responsable" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nombre del responsable" required>
+                            <div id="responsableError" class="error-message hidden">Este campo es obligatorio</div>
+                        </div>
+                        
+                        <div class="pt-4">
+                            <button type="submit" id="guardarBtn" class="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                <span id="btnText">Guardar</span>
+                                <span id="btnLoader" class="loader hidden"></span>
+                            </button>
+                        </div>
+                        
+                        <div class="pt-2">
+                            <button type="button" id="cancelarBtn" class="w-full py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-md transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 hidden">
+                                Cancelar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Visor de movimientos -->
+            <div class="md:col-span-2">
+                <div class="bg-white rounded-lg p-6 card">
+                    <h2 class="text-xl font-semibold mb-4 text-gray-800 flex items-center justify-between">
+                        <div>
+                            <i class="fas fa-history text-indigo-600 mr-2"></i>
+                            Historial de Movimientos
+                        </div>
+                        <div class="text-sm">
+                            <span id="totalRegistros" class="bg-indigo-100 text-indigo-800 py-1 px-2 rounded-full">0 registros</span>
+                        </div>
+                    </h2>
+                    
+                    <div class="mb-4 relative">
+                        <div class="flex items-center border border-gray-300 rounded-md overflow-hidden">
+                            <div class="pl-3 text-gray-500">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="searchInput" 
+                                placeholder="Buscar número de casete o lámina..." 
+                                class="w-full px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 border-0"
+                            >
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="min-w-full divide-y divide-gray-200 table">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha y Hora</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Número</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ubicación</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Responsable</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="movimientosTableBody" class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                                        No hay registros disponibles
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="mt-8 text-center py-4">
+            <p class="text-gray-600">Seguimiento de casetes y láminas de laboratorio</p>
+            <p class="text-sm text-gray-500 mt-1">© 2025 ARCHILAB - Todos los derechos reservados</p>
+        </footer>
+    </div>
+    
+    <!-- Modal de confirmación para eliminar -->
+    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Confirmar eliminación</h3>
+            <p class="text-gray-600 mb-6">¿Está seguro de que desea eliminar este registro? Esta acción no se puede deshacer.</p>
+            <div class="flex justify-end space-x-3">
+                <button id="cancelDelete" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md transition duration-300">
+                    Cancelar
+                </button>
+                <button id="confirmDelete" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition duration-300">
+                    Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script id="app-script">
+        document.addEventListener('DOMContentLoaded', function() {
+            // Referencias a elementos del DOM
+            const registroForm = document.getElementById('registroForm');
+            const editId = document.getElementById('editId');
+            const numero = document.getElementById('numero');
+            const tipoCasete = document.getElementById('tipoCasete');
+            const tipoLamina = document.getElementById('tipoLamina');
+            const ubicacion = document.getElementById('ubicacion');
+            const responsable = document.getElementById('responsable');
+            const movimientosTableBody = document.getElementById('movimientosTableBody');
+            const successToast = document.getElementById('successToast');
+            const toastMessage = document.getElementById('toastMessage');
+            const totalRegistros = document.getElementById('totalRegistros');
+            const deleteModal = document.getElementById('deleteModal');
+            const confirmDelete = document.getElementById('confirmDelete');
+            const cancelDelete = document.getElementById('cancelDelete');
+            const guardarBtn = document.getElementById('guardarBtn');
+            const btnText = document.getElementById('btnText');
+            const btnLoader = document.getElementById('btnLoader');
+            const cancelarBtn = document.getElementById('cancelarBtn');
+            const searchInput = document.getElementById('searchInput');
+            
+            // Elementos de error
+            const numeroError = document.getElementById('numeroError');
+            const ubicacionError = document.getElementById('ubicacionError');
+            const responsableError = document.getElementById('responsableError');
+            
+            let registroAEliminarId = null;
+            
+            // Cargar datos del localStorage al iniciar
+            cargarMovimientos();
+            
+            // Manejador de eventos para el formulario
+            registroForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Validar el formulario
+                let formValido = validarFormulario();
+                
+                if (!formValido) {
+                    return;
+                }
+                
+                // Mostrar indicador de carga
+                btnText.classList.add('hidden');
+                btnLoader.classList.remove('hidden');
+                guardarBtn.disabled = true;
+                
+                // Simular una petición de red
+                setTimeout(() => {
+                    guardarMovimiento();
+                    
+                    // Ocultar indicador de carga
+                    btnText.classList.remove('hidden');
+                    btnLoader.classList.add('hidden');
+                    guardarBtn.disabled = false;
+                }, 800);
+            });
+            
+            // Manejador para el botón cancelar (modo edición)
+            cancelarBtn.addEventListener('click', function() {
+                resetearFormulario();
+            });
+            
+            // Manejadores para el modal de eliminación
+            confirmDelete.addEventListener('click', function() {
+                if (registroAEliminarId) {
+                    eliminarMovimiento(registroAEliminarId);
+                    cerrarModalEliminar();
+                }
+            });
+            
+            cancelDelete.addEventListener('click', cerrarModalEliminar);
+            
+            // Manejador de eventos para la búsqueda
+            searchInput.addEventListener('input', function() {
+                filtrarMovimientos();
+            });
+            
+            // Función para validar el formulario
+            function validarFormulario() {
+                let esValido = true;
+                
+                // Validar número
+                if (!numero.value.trim()) {
+                    numeroError.classList.remove('hidden');
+                    esValido = false;
+                } else {
+                    numeroError.classList.add('hidden');
+                }
+                
+                // Validar ubicación
+                if (!ubicacion.value) {
+                    ubicacionError.classList.remove('hidden');
+                    esValido = false;
+                } else {
+                    ubicacionError.classList.add('hidden');
+                }
+                
+                // Validar responsable
+                if (!responsable.value.trim()) {
+                    responsableError.classList.remove('hidden');
+                    esValido = false;
+                } else {
+                    responsableError.classList.add('hidden');
+                }
+                
+                return esValido;
+            }
+            
+            // Función para guardar un movimiento
+            function guardarMovimiento() {
+                // Obtener datos del formulario
+                const tipoElemento = tipoCasete.checked ? 'Casete' : 'Lámina';
+                const fechaActual = new Date();
+                
+                let movimientos = obtenerMovimientosGuardados();
+                
+                const nuevoMovimiento = {
+                    id: editId.value || Date.now().toString(),
+                    fecha: fechaActual.toISOString(),
+                    numero: numero.value.trim(),
+                    tipo: tipoElemento,
+                    ubicacion: ubicacion.value,
+                    responsable: responsable.value.trim()
+                };
+                
+                // Si estamos editando, actualizar el registro existente
+                if (editId.value) {
+                    const index = movimientos.findIndex(mov => mov.id === editId.value);
+                    if (index !== -1) {
+                        movimientos[index] = nuevoMovimiento;
+                        mostrarToast('Registro actualizado correctamente');
+                    }
+                } else {
+                    // Agregar nuevo registro
+                    movimientos.unshift(nuevoMovimiento);
+                    mostrarToast('Registro guardado correctamente');
+                }
+                
+                // Guardar en localStorage
+                localStorage.setItem('movimientosArchilab', JSON.stringify(movimientos));
+                
+                // Actualizar la tabla
+                cargarMovimientos();
+                
+                // Limpiar formulario
+                resetearFormulario();
+            }
+            
+            // Función para obtener movimientos del localStorage
+            function obtenerMovimientosGuardados() {
+                const movimientosGuardados = localStorage.getItem('movimientosArchilab');
+                return movimientosGuardados ? JSON.parse(movimientosGuardados) : [];
+            }
+            
+            // Función para filtrar movimientos
+            function filtrarMovimientos() {
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                const movimientos = obtenerMovimientosGuardados();
+                
+                // Si no hay término de búsqueda, mostrar todos
+                if (!searchTerm) {
+                    cargarMovimientos();
+                    return;
+                }
+                
+                // Filtrar movimientos por número
+                const movimientosFiltrados = movimientos.filter(movimiento => 
+                    movimiento.numero.toLowerCase().includes(searchTerm)
+                );
+                
+                // Actualizar contador con los resultados filtrados
+                totalRegistros.textContent = `${movimientosFiltrados.length} registro${movimientosFiltrados.length !== 1 ? 's' : ''}`;
+                
+                // Limpiar tabla
+                movimientosTableBody.innerHTML = '';
+                
+                if (movimientosFiltrados.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = `
+                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                            No se encontraron registros para "${searchTerm}"
+                        </td>
+                    `;
+                    movimientosTableBody.appendChild(emptyRow);
+                    return;
+                }
+                
+                // Ordenar movimientos por fecha descendente
+                movimientosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+                
+                // Llenar tabla con resultados filtrados
+                movimientosFiltrados.forEach(movimiento => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50 fade-in';
+                    
+                    // Formatear fecha
+                    const fecha = new Date(movimiento.fecha);
+                    const fechaFormateada = `${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString()}`;
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fechaFormateada}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${movimiento.numero}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${movimiento.tipo === 'Casete' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}">
+                                ${movimiento.tipo}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${movimiento.ubicacion}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${movimiento.responsable}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button class="text-indigo-600 hover:text-indigo-900 mr-3" onclick="editarMovimiento('${movimiento.id}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="text-red-600 hover:text-red-900" onclick="confirmarEliminar('${movimiento.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    
+                    movimientosTableBody.appendChild(row);
+                });
+            }
+            
+            // Función para cargar movimientos en la tabla
+            function cargarMovimientos() {
+                const movimientos = obtenerMovimientosGuardados();
+                
+                // Actualizar contador
+                totalRegistros.textContent = `${movimientos.length} registro${movimientos.length !== 1 ? 's' : ''}`;
+                
+                // Si hay un término de búsqueda activo, usar el filtro en lugar de mostrar todo
+                if (searchInput.value.trim()) {
+                    filtrarMovimientos();
+                    return;
+                }
+                
+                // Limpiar tabla
+                movimientosTableBody.innerHTML = '';
+                
+                if (movimientos.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = `
+                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                            No hay registros disponibles
+                        </td>
+                    `;
+                    movimientosTableBody.appendChild(emptyRow);
+                    return;
+                }
+                
+                // Ordenar movimientos por fecha descendente (más recientes primero)
+                movimientos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+                
+                // Llenar tabla
+                movimientos.forEach(movimiento => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50';
+                    
+                    // Formatear fecha
+                    const fecha = new Date(movimiento.fecha);
+                    const fechaFormateada = `${fecha.toLocaleDateString()} ${fecha.toLocaleTimeString()}`;
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fechaFormateada}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${movimiento.numero}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${movimiento.tipo === 'Casete' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}">
+                                ${movimiento.tipo}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${movimiento.ubicacion}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${movimiento.responsable}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button class="text-indigo-600 hover:text-indigo-900 mr-3" onclick="editarMovimiento('${movimiento.id}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="text-red-600 hover:text-red-900" onclick="confirmarEliminar('${movimiento.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    
+                    movimientosTableBody.appendChild(row);
+                });
+            }
+            
+            // Función para mostrar el toast de éxito
+            function mostrarToast(mensaje) {
+                toastMessage.textContent = mensaje;
+                successToast.classList.add('show');
+                
+                setTimeout(() => {
+                    successToast.classList.remove('show');
+                }, 3000);
+            }
+            
+            // Función para eliminar un movimiento
+            function eliminarMovimiento(id) {
+                let movimientos = obtenerMovimientosGuardados();
+                movimientos = movimientos.filter(mov => mov.id !== id);
+                
+                localStorage.setItem('movimientosArchilab', JSON.stringify(movimientos));
+                cargarMovimientos();
+                mostrarToast('Registro eliminado correctamente');
+            }
+            
+            // Función para mostrar el modal de confirmación de eliminación
+            function confirmarEliminar(id) {
+                registroAEliminarId = id;
+                deleteModal.classList.remove('hidden');
+            }
+            
+            // Función para cerrar el modal de eliminación
+            function cerrarModalEliminar() {
+                deleteModal.classList.add('hidden');
+                registroAEliminarId = null;
+            }
+            
+            // Función para editar un movimiento
+            function editarMovimiento(id) {
+                const movimientos = obtenerMovimientosGuardados();
+                const movimiento = movimientos.find(mov => mov.id === id);
+                
+                if (movimiento) {
+                    // Rellenar formulario con datos del movimiento
+                    editId.value = movimiento.id;
+                    numero.value = movimiento.numero;
+                    
+                    if (movimiento.tipo === 'Casete') {
+                        tipoCasete.checked = true;
+                    } else {
+                        tipoLamina.checked = true;
+                    }
+                    
+                    ubicacion.value = movimiento.ubicacion;
+                    responsable.value = movimiento.responsable;
+                    
+                    // Cambiar texto del botón y mostrar botón cancelar
+                    btnText.textContent = 'Actualizar';
+                    cancelarBtn.classList.remove('hidden');
+                    
+                    // Desplazarse al formulario
+                    registroForm.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+            
+            // Función para resetear el formulario
+            function resetearFormulario() {
+                editId.value = '';
+                registroForm.reset();
+                btnText.textContent = 'Guardar';
+                cancelarBtn.classList.add('hidden');
+                
+                // Ocultar errores
+                numeroError.classList.add('hidden');
+                ubicacionError.classList.add('hidden');
+                responsableError.classList.add('hidden');
+            }
+            
+            // Funciones globales para acceder desde los botones HTML
+            window.editarMovimiento = editarMovimiento;
+            window.confirmarEliminar = confirmarEliminar;
+        });
+    </script>
+</body>
+</html>
